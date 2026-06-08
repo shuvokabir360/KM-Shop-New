@@ -1,0 +1,146 @@
+{
+  "entities": {
+    "Customer": {
+      "title": "Customer",
+      "description": "Information about registered customer accounts on Kuakata Multimedia",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier of the customer" },
+        "name": { "type": "string", "description": "Full name of the customer" },
+        "phone": { "type": "string", "description": "Primary phone number of the customer" },
+        "password": { "type": "string", "description": "Hashed password or hashed verification pin" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp when customer was registered" }
+      },
+      "required": ["id", "name", "phone", "createdAt"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Coastal delicacies, hand-crafted artifacts, and fresh-catch seafood items listed on the e-shop",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique product custom ID" },
+        "name": { "type": "string", "description": "Bangla name of the product" },
+        "englishName": { "type": "string", "description": "English translation or transliteration name" },
+        "price": { "type": "number", "description": "Selling price of the product per unit" },
+        "unit": { "type": "string", "description": "Weight or unit denomination (e.g. 1 kg, 1 dozen)" },
+        "category": { "type": "string", "enum": ["pickle", "dried_fish", "burmese", "handicraft", "fresh_fish"], "description": "Product directory category" },
+        "description": { "type": "string", "description": "Full promotional detail of the item" },
+        "image": { "type": "string", "description": "Display image URL hosted on CDN" },
+        "rating": { "type": "number", "description": "Aggregated user rating out of 5 stars" },
+        "reviews": { "type": "array", "description": "Embedded list of customer product reviews" },
+        "vendorId": { "type": "string", "description": "ID of the seller or merchant offering this product" },
+        "vendorName": { "type": "string", "description": "Primary display name of the merchant" },
+        "stock": { "type": "number", "description": "Inventory units remaining in coastal reserve" },
+        "isPopular": { "type": "boolean", "description": "Showcases item in trending bento grid section" },
+        "specialOffer": { "type": "string", "description": "Optional banner text like '10% OFF' or 'Buy 1 Get 1'" },
+        "sliderImage": { "type": "string", "description": "Opt-in slider graphic URL for homepage presentation" }
+      },
+      "required": ["id", "name", "price", "category", "image", "vendorName", "stock"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Customer purchase transaction records for packing and shipping verification",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Transaction identification string" },
+        "customerName": { "type": "string", "description": "Full name of delivery recipient" },
+        "customerPhone": { "type": "string", "description": "Contact number formatted for logistics carrier" },
+        "customerEmail": { "type": "string", "description": "Optional email receipt address" },
+        "shippingAddress": { "type": "string", "description": "Full physical delivery coordinates" },
+        "items": { "type": "array", "description": "Dynamic structural receipt describing purchased SKU and units" },
+        "totalAmount": { "type": "number", "description": "Aggregated absolute cost in Taka (inclusive of logistics)" },
+        "status": { "type": "string", "enum": ["pending", "processing", "shipped", "delivered"], "description": "Real-time state of the package shipment" },
+        "paymentStatus": { "type": "string", "enum": ["pending", "paid", "failed"], "description": "Transaction payment status" },
+        "paymentMethod": { "type": "string", "enum": ["bkash", "nagad", "card", "cod"], "description": "Option used for settlement" },
+        "deliveryType": { "type": "string", "enum": ["standard", "express"], "description": "Priority tier selected" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Time order was logged in the shop db" },
+        "estimatedDelivery": { "type": "string", "format": "date-time", "description": "Expected courier delivery deadline" }
+      },
+      "required": ["id", "customerName", "customerPhone", "shippingAddress", "items", "totalAmount", "status", "paymentStatus", "paymentMethod", "deliveryType", "createdAt"]
+    },
+    "Notification": {
+      "title": "Notification",
+      "description": "System broadcast messages, flash discounts, or delivery status communications",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique notification ID" },
+        "title": { "type": "string", "description": "Brief header notice to display" },
+        "message": { "type": "string", "description": "Comprehensive body details for notification logs" },
+        "type": { "type": "string", "enum": ["order", "offer", "system"], "description": "Styling categories" },
+        "isRead": { "type": "boolean", "description": "Flag showing whether notice was dismissed" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Log generation time" }
+      },
+      "required": ["id", "title", "message", "type", "isRead", "createdAt"]
+    },
+    "SupportMessage": {
+      "title": "SupportMessage",
+      "description": "A communication exchange transcript log between an online representative and customers",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique message trace key" },
+        "sender": { "type": "string", "enum": ["user", "bot", "agent"], "description": "Sender identifier type" },
+        "text": { "type": "string", "description": "Body message delivered in the active chat" },
+        "timestamp": { "type": "string", "format": "date-time", "description": "Message dispatch timestamp" }
+      },
+      "required": ["id", "sender", "text", "timestamp"]
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "E-shop layout modifications, custom promotional sections, and active features toggle configuration",
+      "type": "object",
+      "properties": {
+        "siteName": { "type": "string", "description": "Kuakata E-Shop title header" },
+        "siteTagline": { "type": "string" },
+        "announcement": { "type": "string" },
+        "heroTitle": { "type": "string" },
+        "heroSub": { "type": "string" },
+        "heroDesc": { "type": "string" },
+        "heroTheme": { "type": "string" },
+        "enableAiChat": { "type": "boolean" },
+        "enableSupportChat": { "type": "boolean" },
+        "enableOrderTracker": { "type": "boolean" },
+        "enableSellerMode": { "type": "boolean" },
+        "promoSectionTitle": { "type": "string" },
+        "categorySectionTitle": { "type": "string" },
+        "productSectionTitle": { "type": "string" },
+        "footerDesc": { "type": "string" },
+        "footerContact": { "type": "string" },
+        "footerAddress": { "type": "string" }
+      },
+      "required": [
+        "siteName",
+        "siteTagline",
+        "heroTitle",
+        "enableAiChat",
+        "enableSupportChat",
+        "enableOrderTracker"
+      ]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "E-shop product catalogs"
+    },
+    "/customers/{customerId}": {
+      "schema": "Customer",
+      "description": "Customer accounts"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Customer transaction and delivery tracking records"
+    },
+    "/notifications/{notificationId}": {
+      "schema": "Notification",
+      "description": "General system broadcast messages"
+    },
+    "/messages/{messageId}": {
+      "schema": "SupportMessage",
+      "description": "Live support chat conversations"
+    },
+    "/settings/{settingsDocId}": {
+      "schema": "Settings",
+      "description": "E-shop design elements and global site features toggle"
+    }
+  }
+}

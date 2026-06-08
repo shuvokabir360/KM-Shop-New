@@ -1,0 +1,6 @@
+{
+  "name": "Kuakata Multimedia",
+  "description": "Kuakata Multimedia - Authentic seaside pickles, dried fish, Burmese products, handicrafts, and fresh-catch seafood e-commerce platform directly from Kuakata.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
