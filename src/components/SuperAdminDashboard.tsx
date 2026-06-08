@@ -30,7 +30,8 @@ import {
   DollarSign,
   Briefcase,
   AlertCircle,
-  Image as ImageIcon
+  Image as ImageIcon,
+  User
 } from 'lucide-react';
 import { Product, Order, Notification } from '../types';
 import ImageUploaderWithCrop from './ImageUploaderWithCrop';
@@ -96,6 +97,41 @@ export default function SuperAdminDashboard({
   const [changePassError, setChangePassError] = useState('');
   const [changePassSuccess, setChangePassSuccess] = useState('');
   const [changePassLoading, setChangePassLoading] = useState(false);
+
+  // User Provisioning & Account Creation states
+  const [provName, setProvName] = useState('');
+  const [provPhone, setProvPhone] = useState('');
+  const [provEmail, setProvEmail] = useState('');
+  const [provPassword, setProvPassword] = useState('');
+  const [provRole, setProvRole] = useState<'customer' | 'seller' | 'admin'>('seller');
+  const [provLoading, setProvLoading] = useState(false);
+  const [provError, setProvError] = useState('');
+  const [provSuccess, setProvSuccess] = useState('');
+
+  // Loaded system users list for audits
+  const [systemUsers, setSystemUsers] = useState<any[]>([]);
+  const [fetchingUsers, setFetchingUsers] = useState(false);
+
+  const fetchSystemUsers = async () => {
+    setFetchingUsers(true);
+    try {
+      const res = await fetch('/api/admin/users');
+      const data = await res.json();
+      if (data.success) {
+        setSystemUsers(data.users || []);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setFetchingUsers(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'settings_security') {
+      fetchSystemUsers();
+    }
+  }, [activeTab]);
   
   // Customization Local State
   const [siteName, setSiteName] = useState(siteConfig.siteName);
@@ -1337,7 +1373,11 @@ export default function SuperAdminDashboard({
                           >
                             -
                           </button>
-                          <span className={`text-xs font-black min-w-[20px] text-center text-slate-800 dark:text-slate-100 ${prod.stock === 0 ? 'text-rose-500 font-extrabold scale-110' : ''}`}>
+                          <span className={`text-xs font-black px-2 py-0.5 rounded-md min-w-[32px] text-center border transition-all ${
+                            prod.stock === 0 
+                              ? 'bg-rose-50 dark:bg-rose-950/30 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-900/50 scale-105' 
+                              : 'bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-800'
+                          }`}>
                             {prod.stock}
                           </span>
                           <button 
@@ -1592,119 +1632,349 @@ export default function SuperAdminDashboard({
 
       {/* 8. SETTINGS & SECURITY VIEW */}
       {activeTab === 'settings_security' && (
-        <div className="space-y-6 max-w-xl mx-auto animate-in fade-in duration-200">
-          <div className={`p-6 sm:p-8 rounded-3xl border space-y-5 shadow-lg relative overflow-hidden ${
-            isDarkMode ? 'bg-slate-800/40 border-slate-800' : 'bg-white border-slate-100'
-          }`}>
-            <div className="border-b pb-4 border-dashed border-slate-200 dark:border-slate-800/80 flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500">
-                <Settings size={22} />
+        <div className="space-y-6 max-w-5xl mx-auto animate-in fade-in duration-200 text-xs text-slate-800 dark:text-slate-100">
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+            
+            {/* Column 1: Admin Password Change */}
+            <div className={`p-6 sm:p-8 rounded-3xl border space-y-5 shadow-lg relative overflow-hidden ${
+              isDarkMode ? 'bg-slate-800/40 border-slate-800' : 'bg-white border-slate-100'
+            }`}>
+              <div className="border-b pb-4 border-dashed border-slate-200 dark:border-slate-800/80 flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500">
+                  <Settings size={22} />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base bangla-text text-slate-800 dark:text-slate-100">
+                    👑 এডমিন নিরাপত্তা ও পাসওয়ার্ড
+                  </h3>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 font-sans mt-0.5">Change Super Admin Main Core Security Password</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-extrabold text-base bangla-text text-slate-800 dark:text-slate-100">
-                  ⚙️ সেটিংস ও নিরাপত্তা (Settings & Security)
-                </h3>
-                <p className="text-xs text-slate-400 dark:text-slate-500 font-medium font-sans">সুপার এডমিন অ্যাকাউন্ট ও সিকিউরিটি পাসওয়ার্ড কনফিগার করুন</p>
-              </div>
+
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                setChangePassError('');
+                setChangePassSuccess('');
+                setChangePassLoading(true);
+                try {
+                  const response = await fetch('/api/admin/change-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ currentPassword, newPassword })
+                  });
+                  const data = await response.json();
+                  if (data.success) {
+                    setChangePassSuccess('পাসওয়ার্ড সফলভাবে পরিবর্তন করা হয়েছে! পরবর্তী সুপার এডমিন লগইনের সময় নতুন পাসওয়ার্ড ব্যবহার করুন।');
+                    setCurrentPassword('');
+                    setNewPassword('');
+                    setConfirmPassword('');
+                  } else {
+                    setChangePassError(data.error || 'পাসওয়ার্ড পরিবর্তন ব্যর্থ হয়েছে!');
+                  }
+                } catch (err) {
+                  console.error(err);
+                  setChangePassError('সার্ভারের সাথে যোগাযোগ করতে একটি ত্রুটি হয়েছে।');
+                } finally {
+                  setChangePassLoading(false);
+                }
+              }} className="space-y-4 font-semibold">
+                
+                <div className="space-y-1 text-left">
+                  <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 bangla-text">বর্তমান পাসওয়ার্ড:</label>
+                  <input
+                    type="password"
+                    required
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className={`w-full p-2.5 rounded-xl border focus:ring-2 focus:ring-amber-500 focus:outline-none ${
+                      isDarkMode 
+                        ? 'bg-slate-950 border-slate-700 text-white' 
+                        : 'bg-white border-slate-300 text-slate-900 font-bold'
+                    }`}
+                    placeholder="আপনার বর্তমান সিকিউরিটি পাসওয়ার্ড"
+                  />
+                </div>
+
+                <div className="space-y-1 text-left">
+                  <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 bangla-text">নতুন পাসওয়ার্ড:</label>
+                  <input
+                    type="password"
+                    required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className={`w-full p-2.5 rounded-xl border focus:ring-2 focus:ring-amber-500 focus:outline-none ${
+                      isDarkMode 
+                        ? 'bg-slate-950 border-slate-700 text-white' 
+                        : 'bg-white border-slate-300 text-slate-900 font-bold'
+                    }`}
+                    placeholder="কমপক্ষে ৫ অক্ষরের নতুন পাসওয়ার্ড"
+                  />
+                </div>
+
+                <div className="space-y-1 text-left">
+                  <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 bangla-text">নতুন পাসওয়ার্ডটি আবার টাইপ করুন:</label>
+                  <input
+                    type="password"
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className={`w-full p-2.5 rounded-xl border focus:ring-2 focus:ring-amber-500 focus:outline-none ${
+                      isDarkMode 
+                        ? 'bg-slate-950 border-slate-750 text-white' 
+                        : 'bg-white border-slate-300 text-slate-900 font-bold'
+                    }`}
+                    placeholder="নতুন পাসওয়ার্ডটি পুনরায় প্রদান করুন"
+                  />
+                </div>
+
+                {changePassError && (
+                  <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-xl text-left font-medium bangla-text text-[11px]">
+                    🚨 {changePassError}
+                  </div>
+                )}
+
+                {changePassSuccess && (
+                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 rounded-xl text-left font-bold bangla-text text-[11px]">
+                    ✅ {changePassSuccess}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={changePassLoading || !currentPassword || !newPassword || newPassword !== confirmPassword}
+                  className="w-full bg-amber-500 hover:bg-amber-600 disabled:opacity-45 text-slate-950 font-sans font-extrabold py-3 px-4 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer text-xs shadow-md"
+                >
+                  {changePassLoading ? 'প্রসেসিং হচ্ছে...' : (newPassword !== confirmPassword ? 'পাসওয়ার্ড দুটি মিলছে না' : 'পাসওয়ার্ড পরিবর্তন করুন 🔑')}
+                </button>
+              </form>
             </div>
 
-            <form onSubmit={async (e) => {
-              e.preventDefault();
-              setChangePassError('');
-              setChangePassSuccess('');
-              setChangePassLoading(true);
-              try {
-                const response = await fetch('/api/admin/change-password', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ currentPassword, newPassword })
-                });
-                const data = await response.json();
-                if (data.success) {
-                  setChangePassSuccess('পাসওয়ার্ড সফলভাবে পরিবর্তন করা হয়েছে! পরবর্তী সুপার এডমিন লগইনের সময় নতুন পাসওয়ার্ড ব্যবহার করুন।');
-                  setCurrentPassword('');
-                  setNewPassword('');
-                  setConfirmPassword('');
-                } else {
-                  setChangePassError(data.error || 'পাসওয়ার্ড পরিবর্তন ব্যর্থ হয়েছে!');
+            {/* Column 2: Account Provisioning Portal */}
+            <div className={`p-6 sm:p-8 rounded-3xl border space-y-5 shadow-lg relative overflow-hidden ${
+              isDarkMode ? 'bg-slate-800/40 border-slate-800' : 'bg-white border-slate-100'
+            }`}>
+              <div className="border-b pb-4 border-dashed border-slate-200 dark:border-slate-800/80 flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                  <User size={22} />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base bangla-text text-slate-800 dark:text-slate-100">
+                    🛍️ মেম্বারশিপ ও অ্যাকাউন্ট তৈরি করুন
+                  </h3>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 font-sans mt-0.5">Provision Customers, Sellers/Vendors & Sub-Admins</p>
+                </div>
+              </div>
+
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                setProvError('');
+                setProvSuccess('');
+                setProvLoading(true);
+
+                try {
+                  const res = await fetch('/api/admin/create-user', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      name: provName,
+                      phone: provPhone,
+                      email: provEmail,
+                      password: provPassword,
+                      role: provRole
+                    })
+                  });
+                  const data = await res.json();
+                  if (data.success) {
+                    setProvSuccess(`অ্যাকাউন্টটি সফলভাবে তৈরি করা হয়েছে! তিনি এখন "${provPhone || provEmail}" দিয়ে লগইন করতে পারবেন।`);
+                    setProvName('');
+                    setProvPhone('');
+                    setProvEmail('');
+                    setProvPassword('');
+                    fetchSystemUsers(); // Reload audit trail
+                  } else {
+                    setProvError(data.error || 'অ্যাকাউন্ট তৈরিতে ত্রুটি দেখা দিয়েছে!');
+                  }
+                } catch (err) {
+                  console.error(err);
+                  setProvError('সার্ভারে যোগাযোগ করা যায়নি। পুনরায় চেষ্টা করুন।');
+                } finally {
+                  setProvLoading(false);
                 }
-              } catch (err) {
-                console.error(err);
-                setChangePassError('সার্ভারের সাথে যোগাযোগ করতে একটি ত্রুটি হয়েছে।');
-              } finally {
-                setChangePassLoading(false);
-              }
-            }} className="space-y-4 text-xs font-semibold">
-              
-              <div className="space-y-1 text-left">
-                <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 bangla-text">বর্তমান পাসওয়ার্ড:</label>
-                <input
-                  type="password"
-                  required
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  className={`w-full p-2.5 rounded-xl border focus:ring-2 focus:ring-amber-500 focus:outline-none ${
-                    isDarkMode 
-                      ? 'bg-slate-950 border-slate-700 text-white' 
-                      : 'bg-white border-slate-300 text-slate-900 font-bold'
-                  }`}
-                  placeholder="আপনার বর্তমান সিকিউরিটি পাসওয়ার্ড"
-                />
-              </div>
+              }} className="space-y-3 font-semibold text-left">
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-400 bangla-text">পূর্ণ নাম:</label>
+                    <input
+                      type="text"
+                      required
+                      value={provName}
+                      onChange={(e) => setProvName(e.target.value)}
+                      className={`w-full p-2 rounded-xl border focus:ring-1 focus:ring-emerald-500 text-xs ${
+                        isDarkMode ? 'bg-slate-950 border-slate-750' : 'bg-slate-50'
+                      }`}
+                      placeholder="যেমন: আরফান আলী"
+                    />
+                  </div>
 
-              <div className="space-y-1 text-left">
-                <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 bangla-text">নতুন পাসওয়ার্ড:</label>
-                <input
-                  type="password"
-                  required
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className={`w-full p-2.5 rounded-xl border focus:ring-2 focus:ring-amber-500 focus:outline-none ${
-                    isDarkMode 
-                      ? 'bg-slate-950 border-slate-700 text-white' 
-                      : 'bg-white border-slate-300 text-slate-900 font-bold'
-                  }`}
-                  placeholder="কমপক্ষে ৫ অক্ষরের নতুন পাসওয়ার্ড"
-                />
-              </div>
-
-              <div className="space-y-1 text-left">
-                <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 bangla-text">নতুন পাসওয়ার্ডটি আবার টাইপ করুন:</label>
-                <input
-                  type="password"
-                  required
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className={`w-full p-2.5 rounded-xl border focus:ring-2 focus:ring-amber-500 focus:outline-none ${
-                    isDarkMode 
-                      ? 'bg-slate-950 border-slate-750 text-white' 
-                      : 'bg-white border-slate-300 text-slate-900 font-bold'
-                  }`}
-                  placeholder="নতুন পাসওয়ার্ডটি পুনরায় প্রদান করুন"
-                />
-              </div>
-
-              {changePassError && (
-                <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-xl text-left font-medium bangla-text text-[11px]">
-                  🚨 {changePassError}
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-400 bangla-text font-sans">Account Role *:</label>
+                    <select
+                      value={provRole}
+                      onChange={(e) => setProvRole(e.target.value as any)}
+                      className={`w-full p-2.5 rounded-xl border focus:ring-1 focus:ring-emerald-500 text-xs font-bold ${
+                        isDarkMode ? 'bg-slate-950 border-slate-750' : 'bg-slate-100 border-slate-350'
+                      }`}
+                    >
+                      <option value="customer">🛍️ সাধারণ কাস্টমার (Customer)</option>
+                      <option value="seller">🏪 সেলার ও ভেন্ডর (Seller/Vendor)</option>
+                      <option value="admin">👑 সিকিউর এডমিন (Admin)</option>
+                    </select>
+                  </div>
                 </div>
-              )}
 
-              {changePassSuccess && (
-                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 rounded-xl text-left font-bold bangla-text text-[11px]">
-                  ✅ {changePassSuccess}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-400 bangla-text">মোবাইল:</label>
+                    <input
+                      type="tel"
+                      value={provPhone}
+                      onChange={(e) => setProvPhone(e.target.value.replace(/\D/g, ''))}
+                      className={`w-full p-2 rounded-xl border focus:ring-1 focus:ring-emerald-500 text-xs ${
+                        isDarkMode ? 'bg-slate-950 border-slate-755' : 'bg-slate-50'
+                      }`}
+                      placeholder="যেমন: 01788XXXXXX"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-400 bangla-text">ইমেইল:</label>
+                    <input
+                      type="email"
+                      value={provEmail}
+                      onChange={(e) => setProvEmail(e.target.value)}
+                      className={`w-full p-2 rounded-xl border focus:ring-1 focus:ring-emerald-500 text-xs ${
+                        isDarkMode ? 'bg-slate-950 border-slate-755' : 'bg-slate-50'
+                      }`}
+                      placeholder="name@example.com"
+                    />
+                  </div>
                 </div>
-              )}
 
-              <button
-                type="submit"
-                disabled={changePassLoading || !currentPassword || !newPassword || newPassword !== confirmPassword}
-                className="w-full bg-amber-500 hover:bg-amber-600 disabled:opacity-45 text-slate-950 font-sans font-extrabold py-3 px-4 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer text-xs shadow-md"
-              >
-                {changePassLoading ? 'প্রসেসিং হচ্ছে...' : (newPassword !== confirmPassword ? 'পাসওয়ার্ড দুটি মিলছে না' : 'পাসওয়ার্ড পরিবর্তন করুন 🔑')}
-              </button>
-            </form>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-bold text-slate-400 bangla-text">অ্যাকাউন্ট সিকিউরিটি পাসওয়ার্ড *:</label>
+                  <input
+                    type="text"
+                    required
+                    value={provPassword}
+                    onChange={(e) => setProvPassword(e.target.value)}
+                    className={`w-full p-2 rounded-xl border focus:ring-1 focus:ring-emerald-500 text-xs text-rose-500 font-bold ${
+                      isDarkMode ? 'bg-slate-950 border-slate-755' : 'bg-slate-50'
+                    }`}
+                    placeholder="কমপক্ষে ৪ সংখ্যার পাসওয়ার্ড দিন"
+                  />
+                  <p className="text-[9px] text-slate-400 font-sans leading-none">Note: Use this password along with Mobile/Email to login at customer unified section.</p>
+                </div>
+
+                {provError && (
+                  <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-500 text-[11px] rounded-xl bangla-text">
+                    ⚠️ {provError}
+                  </div>
+                )}
+
+                {provSuccess && (
+                  <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-[11px] rounded-xl bangla-text font-bold">
+                    🎉 {provSuccess}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={provLoading || !provName || (!provPhone && !provEmail) || !provPassword}
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-45 text-white font-sans font-extrabold py-3 rounded-xl transition flex items-center justify-center gap-1 text-xs cursor-pointer shadow-md"
+                >
+                  {provLoading ? 'অ্যাকাউন্ট প্রসেস হচ্ছে...' : 'নতুন মেম্বারশিপ যোগ করুন 🚀'}
+                </button>
+              </form>
+            </div>
           </div>
+
+          {/* Users Audit Trail list */}
+          <div className={`p-6 sm:p-8 rounded-3xl border space-y-4 shadow-lg ${
+            isDarkMode ? 'bg-slate-800/45 border-slate-800' : 'bg-white border-slate-100'
+          }`}>
+            <div className="border-b pb-4 border-dashed border-slate-200 dark:border-slate-800/80 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-1.5 h-6 rounded-full bg-indigo-500"></div>
+                <div>
+                  <h3 className="font-extrabold text-sm bangla-text">📊 নিবন্ধিত সিস্টেম মেম্বার ও অ্যাকাউন্ট লিস্ট</h3>
+                  <p className="text-[10px] text-slate-400">Total Authenticated Users Audit Trail (Secure DB Connection)</p>
+                </div>
+              </div>
+
+              <button 
+                onClick={fetchSystemUsers}
+                disabled={fetchingUsers}
+                className="px-3 py-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-850 dark:hover:bg-slate-750 text-[10px] rounded-lg transition border border-transparent dark:border-slate-750 select-none font-bold cursor-pointer"
+              >
+                {fetchingUsers ? 'রিলোড হচ্ছে...' : 'লিস্ট রিফ্রেশ'}
+              </button>
+            </div>
+
+            <div className="overflow-x-auto rounded-xl">
+              <table className="w-full text-left border-collapse text-[11px]">
+                <thead>
+                  <tr className={`border-b ${isDarkMode ? 'border-slate-850 text-slate-400' : 'border-slate-200 text-slate-500'} uppercase font-bold tracking-wider`}>
+                    <th className="p-3">পূর্ণ নাম (Name)</th>
+                    <th className="p-3">মোবাইল / ইউজারনেম</th>
+                    <th className="p-3">ইমেইল এড্রেস</th>
+                    <th className="p-3 text-center">টাইপ/রোল</th>
+                    <th className="p-3 text-right">নিবন্ধন তারিখ</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/30">
+                  {systemUsers.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="p-8 text-center text-slate-400 font-sans">
+                        কোনো অ্যাকাউন্ট পাওয়া যায়নি। অনুগ্রহ করে উপরের ফর্ম ব্যবহার করে একটি অ্যাকাউন্ট তৈরি করুন।
+                      </td>
+                    </tr>
+                  ) : (
+                    systemUsers.map((user: any) => {
+                      let badgeClass = "text-emerald-500 bg-emerald-500/10 border-emerald-500/20";
+                      let badgeLabel = "🛍️ কাস্টমার";
+                      if (user.role === 'seller') {
+                        badgeClass = "text-rose-500 bg-rose-500/10 border-rose-500/20";
+                        badgeLabel = "🏪 সেলার/ভেন্ডর";
+                      } else if (user.role === 'admin') {
+                        badgeClass = "text-amber-500 bg-amber-500/10 border-amber-500/20";
+                        badgeLabel = "👑 এডমিন";
+                      }
+
+                      return (
+                        <tr key={user.id} className={`hover:bg-slate-500/5 transition duration-150`}>
+                          <td className="p-3 font-extrabold bangla-text text-slate-700 dark:text-slate-200">{user.name}</td>
+                          <td className="p-3 font-mono text-slate-600 dark:text-slate-400 font-bold">{user.phone || 'N/A'}</td>
+                          <td className="p-3 font-mono text-slate-500 dark:text-slate-400">{user.email || 'N/A'}</td>
+                          <td className="p-3 text-center">
+                            <span className={`px-2.5 py-0.5 rounded-full border text-[9px] font-extrabold select-none ${badgeClass}`}>
+                              {badgeLabel}
+                            </span>
+                          </td>
+                          <td className="p-3 text-right text-slate-400 font-mono text-[10px]">
+                            {new Date(user.createdAt).toLocaleDateString('bn-BD')}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+          </div>
+
         </div>
       )}
 

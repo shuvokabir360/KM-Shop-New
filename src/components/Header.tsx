@@ -156,19 +156,6 @@ export default function Header({
           {/* Action Tools */}
           <div className="flex items-center gap-2 sm:gap-4">
             
-            {/* Sync and Connection status indicators */}
-            <div className="flex items-center gap-1 text-[11px] font-mono opacity-85">
-              <span className={`w-2.5 h-2.5 rounded-full ${onlineStatus ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`}></span>
-              <span className="hidden sm:inline text-xs">{onlineStatus ? 'অনলাইন ডাটা সিঙ্কড' : 'অফলাইন মোড'}</span>
-            </div>
-
-            {/* Offline Sync State Badge click alerts */}
-            {!onlineStatus && (
-              <div className="text-[11px] text-amber-500 bg-amber-500/10 px-2 py-1 rounded max-w-40 truncate font-sans text-right animate-pulse hidden md:inline">
-                লোকাল রিকভারি স্টোরেজ সক্রিয়
-              </div>
-            )}
-
             {/* Support chat toggle button */}
             {siteConfig.enableSupportChat && (
               <button
@@ -279,7 +266,7 @@ export default function Header({
                     : 'bg-slate-100 text-slate-700 border-slate-200 hover:bg-slate-200'
                 }`}
               >
-                <span className="bangla-text font-bold">লগইন</span>
+                <span className="font-bold font-sans">Login</span>
               </button>
             )}
 
@@ -458,13 +445,13 @@ export default function Header({
                   <User size={18} />
                 </div>
                 <div>
-                  <p className="font-semibold text-sm bangla-text">গ্রাহক লগইন / এক্সেস</p>
+                  <p className="font-semibold text-sm font-sans">Login</p>
                   <p className="text-[11px] text-slate-500">পূর্ববর্তী অর্ডার হিস্টোরি ও ট্র্যাকিং</p>
                 </div>
               </button>
             )}
 
-            {siteConfig.enableSellerMode && (
+            {isLoggedIn && loggedInCustomer?.role === 'seller' && siteConfig.enableSellerMode && (
               <div className="border-t border-slate-100 dark:border-slate-800 pt-3 flex justify-between items-center">
                 <span className="text-xs text-slate-500 bangla-text">সেলার প্ল্যাটফর্ম এক্সেস:</span>
                 <button
@@ -476,25 +463,27 @@ export default function Header({
                       : 'bg-emerald-600 border-emerald-600 text-white'
                   }`}
                 >
-                  {isSellerMode ? 'গ্রাহক মোডে যান' : 'সেলিং ড্যাশবোর্ড'}
+                  {isSellerMode ? 'গ্রাহক মোডে যান' : 'সেলার ড্যাশবোর্ড'}
                 </button>
               </div>
             )}
 
-            <div className={`border-t border-slate-100 dark:border-slate-800 ${siteConfig.enableSellerMode ? 'pt-3' : 'pt-3'} flex justify-between items-center`}>
-              <span className="text-xs text-slate-500 bangla-text">সিস্টেম কনফিগারেশন:</span>
-              <button
-                id="super-admin-btn-drawer"
-                onClick={() => { setIsAdminMode(!isAdminMode); setIsSellerMode(false); setMobileMenuOpen(false); }}
-                className={`px-4 py-2 rounded-xl text-xs font-bold border transition ${
-                  isAdminMode 
-                    ? 'bg-amber-500 border-amber-500 text-slate-950' 
-                    : 'bg-slate-800 border-slate-700 text-amber-400 hover:text-white'
-                }`}
-              >
-                {isAdminMode ? 'এডমিন বন্ধ করুন' : 'সুপার এডমিন প্যানেল'}
-              </button>
-            </div>
+            {isLoggedIn && loggedInCustomer?.role === 'admin' && (
+              <div className={`border-t border-slate-100 dark:border-slate-800 pt-3 flex justify-between items-center`}>
+                <span className="text-xs text-slate-500 bangla-text">সিস্টেম কনফিগারেশন:</span>
+                <button
+                  id="super-admin-btn-drawer"
+                  onClick={() => { setIsAdminMode(!isAdminMode); setIsSellerMode(false); setMobileMenuOpen(false); }}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold border transition ${
+                    isAdminMode 
+                      ? 'bg-amber-500 border-amber-500 text-slate-950' 
+                      : 'bg-slate-800 border-slate-700 text-amber-400 hover:text-white'
+                  }`}
+                >
+                  {isAdminMode ? 'এডমিন বন্ধ করুন' : 'সুপার এডমিন প্যানেল'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

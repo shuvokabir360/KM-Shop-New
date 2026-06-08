@@ -457,6 +457,101 @@ const findUserByIdentifier = (identifier: string) => {
   );
 };
 
+// Password recovery tokens (in-memory database)
+const activeRecoveries = new Map<string, { identifier: string; email: string; expires: number }>();
+
+// Password Recovery API Endpoints (For Super Admin, Customer, Seller/Vendor)
+app.post('/api/auth/recover-password', (req, res) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ success: false, error: 'অনুগ্রহ করে আপনার নিবন্ধিত ইমেইল এড্রেসটি দিন।' });
+  }
+
+  const cleanEmail = email.trim().toLowerCase();
+  let foundUser = null;
+
+  if (cleanEmail === 'shuvokuakata27@gmail.com') {
+    foundUser = {
+      id: 'admin-master',
+      name: 'Super Admin',
+      email: 'shuvokuakata27@gmail.com',
+      role: 'admin'
+    };
+  } else {
+    // Search dbCustomers
+    const user = dbCustomers.find(cu => cu.email && cu.email.trim().toLowerCase() === cleanEmail);
+    if (user) {
+      foundUser = {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role
+      };
+    }
+  }
+
+  if (!foundUser) {
+    return res.status(404).json({ success: false, error: 'দুঃখিত, এই ইমেইল এড্রেস দিয়ে কোনো নিবন্ধিত অ্যাকাউন্ট পাওয়া যায়নি।' });
+  }
+
+  // Generate a unique token
+  const token = `rectok-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+  activeRecoveries.set(token, {
+    identifier: foundUser.id,
+    email: cleanEmail,
+    expires: Date.now() + 15 * 60 * 1000 // 15 mins expiry
+  });
+
+  res.json({
+    success: true,
+    message: 'পাসওয়ার্ড রি-সেট মেইল সফলভাবে প্রস্তুত করা হয়েছে!',
+    token,
+    user: foundUser
+  });
+});
+
+app.post('/api/auth/reset-password', (req, res) => {
+  const { token, newPassword } = req.body;
+  if (!token || !newPassword) {
+    return res.status(400).json({ success: false, error: 'টোকেন এবং নতুন পাসওয়ার্ড প্রদান করা আবশ্যক।' });
+  }
+
+  if (newPassword.trim().length < 4) {
+    return res.status(400).json({ success: false, error: 'নিরাপত্তার স্বার্থে পাসওয়ার্ডটি কমপক্ষে ৪ সংখ্যার হতে হবে।' });
+  }
+
+  const recovery = activeRecoveries.get(token);
+  if (!recovery) {
+    return res.status(400).json({ success: false, error: 'দুঃখিত, পাসওয়ার্ড পরিবর্তনের লিঙ্ক বা টোকেনটি অবৈধ।' });
+  }
+
+  if (Date.now() > recovery.expires) {
+    activeRecoveries.delete(token);
+    return res.status(400).json({ success: false, error: 'দুঃখিত, পাসওয়ার্ড পরিবর্তনের লিঙ্কটির মেয়াদ উত্তীর্ণ হয়ে গেছে। অনুগ্রহ করে আবার চেষ্টা করুন।' });
+  }
+
+  // Update password
+  if (recovery.identifier === 'admin-master') {
+    adminPassword = newPassword.trim();
+    adminPasswordChanged = true;
+  } else {
+    const userIndex = dbCustomers.findIndex(cu => cu.id === recovery.identifier);
+    if (userIndex !== -1) {
+      dbCustomers[userIndex].password = newPassword.trim();
+    } else {
+      return res.status(404).json({ success: false, error: 'ব্যবহারকারীকে খুঁজে পাওয়া যায়নি!' });
+    }
+  }
+
+  // Clean up token after successful reset
+  activeRecoveries.delete(token);
+
+  res.json({
+    success: true,
+    message: 'আপনার পাসওয়ার্ড সফলভাবে পরিবর্তিত হয়েছে! এখন নতুন পাসওয়ার্ড দিয়ে লগইন করুন।'
+  });
+});
+
 // Unified Auth Endpoints
 
 // 1. Check if user exists by email or mobile
@@ -490,9 +585,13 @@ app.post('/api/auth/check', (req, res) => {
   });
 });
 
-// 2. Unified Registration (Supports registering customer, seller, administrator)
+// 2. Unified Registration (Saves only Customer accounts from public form)
 app.post('/api/auth/register', (req, res) => {
   const { name, phone, email, password, role } = req.body;
+
+  if (role && role !== 'customer') {
+    return res.status(403).json({ success: false, error: 'সেলার, ভেন্ডর অথবা এডমিন অ্যাকাউন্ট আপনি নিজে অনলাইন থেকে তৈরি করতে পারবেন না। এই অ্যাকাউন্টগুলো শুধুমাত্র সুপার এডমিন প্যানেল থেকে তৈরি করার নিয়ম রয়েছে।' });
+  }
 
   if (!name || !name.trim()) {
     return res.status(400).json({ success: false, error: 'আপনার সম্পূর্ণ নাম প্রদান করুন।' });
@@ -530,7 +629,7 @@ app.post('/api/auth/register', (req, res) => {
     phone: phone ? phone.trim() : '',
     email: email ? email.trim().toLowerCase() : '',
     password: password,
-    role: role || 'customer',
+    role: 'customer', // Online self-registration is strictly restricted to regular customer accounts
     createdAt: new Date().toISOString()
   };
 
@@ -546,6 +645,76 @@ app.post('/api/auth/register', (req, res) => {
       email: newUser.email,
       role: newUser.role
     }
+  });
+});
+
+// 2.5 Super Admin Only Account Provisioning Router 
+app.post('/api/admin/create-user', (req, res) => {
+  const { name, phone, email, password, role } = req.body;
+
+  if (!name || !name.trim()) {
+    return res.status(400).json({ success: false, error: 'সম্পূর্ণ নাম প্রদান করুন।' });
+  }
+
+  if (!phone && !email) {
+    return res.status(400).json({ success: false, error: 'মোবাইল নম্বর অথবা ইমেইল যেকোনো একটি টাইপ করুন।' });
+  }
+
+  if (!password || password.trim().length < 4) {
+    return res.status(400).json({ success: false, error: 'অন্তত ৪ ডিজিটের একটি পাসওয়ার্ড টাইপ করুন।' });
+  }
+
+  if (phone) {
+    const cleanPhone = phone.trim();
+    if (findUserByIdentifier(cleanPhone)) {
+      return res.status(400).json({ success: false, error: 'এই মোবাইল নম্বরটি দিয়ে ইতিমধ্যে একটি অ্যাকাউন্ট তৈরি করা আছে।' });
+    }
+  }
+
+  if (email) {
+    const cleanEmail = email.trim().toLowerCase();
+    if (findUserByIdentifier(cleanEmail)) {
+      return res.status(400).json({ success: false, error: 'এই ইমেইল এড্রেসটি দিয়ে ইতিমধ্যে অ্যাকাউন্ট তৈরি করা আছে।' });
+    }
+  }
+
+  const newUser: Customer = {
+    id: `u-${Date.now()}`,
+    name: name.trim(),
+    phone: phone ? phone.trim() : '',
+    email: email ? email.trim().toLowerCase() : '',
+    password: password,
+    role: role || 'customer',
+    createdAt: new Date().toISOString()
+  };
+
+  dbCustomers.push(newUser);
+
+  res.json({
+    success: true,
+    message: 'নতুন মেম্বারশিপ অ্যাকাউন্ট সফলভাবে তৈরি ও সক্রিয় করা হয়েছে!',
+    user: {
+      id: newUser.id,
+      name: newUser.name,
+      phone: newUser.phone,
+      email: newUser.email,
+      role: newUser.role
+    }
+  });
+});
+
+// 2.6 Fetch All Users List for Admin Audit Panel
+app.get('/api/admin/users', (req, res) => {
+  res.json({
+    success: true,
+    users: dbCustomers.map(u => ({
+      id: u.id,
+      name: u.name,
+      phone: u.phone,
+      email: u.email,
+      role: u.role || 'customer',
+      createdAt: u.createdAt || new Date().toISOString()
+    }))
   });
 });
 

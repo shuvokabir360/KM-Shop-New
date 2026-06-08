@@ -33,7 +33,7 @@ export default function CustomerLoginModal({
   isDarkMode,
   onLoginSuccess
 }: CustomerLoginModalProps) {
-  const [step, setStep] = useState<'identifier' | 'password' | 'register'>('identifier');
+  const [step, setStep] = useState<'identifier' | 'password' | 'register' | 'recovery'>('identifier');
   
   // States
   const [identifier, setIdentifier] = useState(''); // can be email or phone
@@ -47,6 +47,8 @@ export default function CustomerLoginModal({
   const [existsCheck, setExistsCheck] = useState({ exists: false, hasPassword: false, name: '', role: 'customer' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [recoveryEmail, setRecoveryEmail] = useState('');
+  const [recoverySuccess, setRecoverySuccess] = useState('');
 
   if (!isOpen) return null;
 
@@ -60,6 +62,49 @@ export default function CustomerLoginModal({
     setConfirmPassword('');
     setRole('customer');
     setError('');
+    setRecoveryEmail('');
+    setRecoverySuccess('');
+  };
+
+  const handleRecoverySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setRecoverySuccess('');
+
+    if (!recoveryEmail.trim()) {
+      setError('দয়া করে আপনার নিবন্ধিত ইমেইল এড্রেস টাইপ করুন!');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/recover-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: recoveryEmail.trim() })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        setRecoverySuccess(`পাসওয়ার্ড রিসেটের লিঙ্কটি ${recoveryEmail} ইমেইলে পাঠানো হয়েছে! অনুগ্রহ করে আপনার ইনবক্স চেক করুন।`);
+        
+        // Dispatch custom window event to simulate email incoming
+        window.dispatchEvent(new CustomEvent('kqm_received_email', {
+          detail: {
+            to: recoveryEmail.trim(),
+            token: data.token,
+            name: data.user.name,
+            role: data.user.role
+          }
+        }));
+      } else {
+        setError(data.error || 'পাসওয়ার্ড রিকভারি শুরু করা যায়নি!');
+      }
+    } catch (err) {
+      setError('সার্ভারে যোগাযোগ করা যায়নি, ইন্টারনেট চেক করে আবার চেষ্টা করুন।');
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Helper to validate identifier type.
@@ -391,6 +436,23 @@ export default function CustomerLoginModal({
                   />
                   <Lock className="absolute left-3.5 top-3 text-slate-400" size={15} />
                 </div>
+                <div className="flex justify-end mt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isEmailFormat(identifier)) {
+                        setRecoveryEmail(identifier);
+                      } else {
+                        setRecoveryEmail('');
+                      }
+                      setError('');
+                      setStep('recovery');
+                    }}
+                    className="text-[10px] text-emerald-500 hover:underline font-bold bangla-text cursor-pointer flex items-center gap-1"
+                  >
+                    🔒 পাসওয়ার্ড ভুলে গেছেন? রিকভারি করুন
+                  </button>
+                </div>
               </div>
 
               <button
@@ -405,6 +467,84 @@ export default function CustomerLoginModal({
                   <span className="bangla-text">সিকিউর লগইন করুন 🔑</span>
                 )}
               </button>
+            </form>
+          )}
+
+          {/* STEP 4: PASS RECOVERY SYSTEM */}
+          {step === 'recovery' && (
+            <form onSubmit={handleRecoverySubmit} className="space-y-4">
+              <div className="bg-orange-500/5 rounded-2xl p-3 border border-orange-500/10 flex items-start gap-2.5">
+                <ShieldAlert size={16} className="text-orange-500 shrink-0 mt-0.5" />
+                <div className="leading-relaxed">
+                  <h5 className="text-[12px] bangla-text font-extrabold text-orange-600">
+                    নিরাপদ পাসওয়ার্ড রিকভারি!
+                  </h5>
+                  <p className="text-[10px] text-slate-400 bangla-text leading-relaxed">
+                    আপনার নিবন্ধিত একাউন্টের ইমেইল এড্রেসটি নিচে প্রদান করুন। আমরা কুয়াকাটা মাল্টিমিডিয়া শপ থেকে আপনার ইমেইলে একটি পাসওয়ার্ড রি-সেট করার লিঙ্ক মেইল করব।
+                  </p>
+                </div>
+              </div>
+
+              {recoverySuccess ? (
+                <div className="bg-emerald-500/5 border border-emerald-500/10 text-emerald-605 p-4 rounded-2xl text-[11px] bangla-text text-center space-y-3 leading-relaxed">
+                  <span className="font-extrabold">{recoverySuccess}</span>
+                  <div className="pt-2 animate-pulse font-extrabold text-[11px] text-orange-500">
+                    📨 স্ক্রিনের নিচের ডানদিকে দেখুন, একটি ইনকামিং মেইল নোটিফিকেশন এসেছে!
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStep('identifier');
+                      setRecoverySuccess('');
+                    }}
+                    className="mt-2 text-xs text-slate-400 hover:text-slate-600 hover:underline font-bold"
+                  >
+                    লগইন পেজে ফিরে যান
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold text-slate-400 bangla-text">নিবন্ধিত ইমেইল এড্রেস দিন *</label>
+                    <div className="relative">
+                      <input
+                        id="recovery-email-input"
+                        type="email"
+                        required
+                        value={recoveryEmail}
+                        onChange={(e) => setRecoveryEmail(e.target.value)}
+                        className={`w-full p-2.5 pl-10 rounded-xl border focus:outline-none focus:ring-1 focus:ring-emerald-500 text-xs font-mono font-semibold ${
+                          isDarkMode ? 'bg-slate-950 border-slate-750 text-slate-100' : 'bg-slate-50 border-slate-200 text-slate-800'
+                        }`}
+                        placeholder="example@yourdomain.com"
+                      />
+                      <Mail className="absolute left-3.5 top-3 text-slate-400" size={15} />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={loading || !recoveryEmail.trim()}
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-sans font-extrabold py-2.5 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer text-xs disabled:opacity-50"
+                  >
+                    {loading ? (
+                      <span className="bangla-text">লিঙ্ক পাঠানো হচ্ছে...</span>
+                    ) : (
+                      <span className="bangla-text">পাসওয়ার্ড রিকভারি লিঙ্ক পাঠান ✉️</span>
+                    )}
+                  </button>
+
+                  <div className="text-center pt-1">
+                    <button 
+                      type="button" 
+                      onClick={() => setStep('password')} 
+                      className="text-[10px] text-slate-400 hover:text-slate-600 hover:underline bangla-text font-bold"
+                    >
+                      লগইন পাসওয়ার্ড স্ক্রিনে ফিরে যান
+                    </button>
+                  </div>
+                </>
+              )}
             </form>
           )}
 
@@ -423,52 +563,8 @@ export default function CustomerLoginModal({
                 </div>
               </div>
 
-              {/* Role Selection Tabs */}
-              <div className="space-y-1">
-                <label className="block text-[11px] font-bold text-slate-400 bangla-text select-none">
-                  কাঙ্ক্ষিত অ্যাকাউন্টের ধরন (Account Role) *
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setRole('customer')}
-                    className={`p-2 rounded-xl border text-[10px] font-bold flex flex-col items-center gap-1.5 transition ${
-                      role === 'customer'
-                        ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600 dark:text-emerald-400 shadow-sm'
-                        : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-400'
-                    }`}
-                  >
-                    <UserCheck size={16} />
-                    <span className="bangla-text">🛍️ কাস্টমার</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setRole('seller')}
-                    className={`p-2 rounded-xl border text-[10px] font-bold flex flex-col items-center gap-1.5 transition ${
-                      role === 'seller'
-                        ? 'bg-rose-500/10 border-rose-500 text-rose-600 dark:text-rose-400 shadow-sm'
-                        : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-400'
-                    }`}
-                  >
-                    <Store size={16} />
-                    <span className="bangla-text">🏪 সেলার/ভেন্ডর</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setRole('admin')}
-                    className={`p-2 rounded-xl border text-[10px] font-bold flex flex-col items-center gap-1.5 transition ${
-                      role === 'admin'
-                        ? 'bg-amber-500/10 border-amber-500 text-amber-500 shadow-sm'
-                        : 'bg-transparent border-slate-200 dark:border-slate-800 text-slate-400'
-                    }`}
-                  >
-                    <ShieldCheck size={16} />
-                    <span className="bangla-text">👑 এডমিন</span>
-                  </button>
-                </div>
-              </div>
+              {/* Self-registration automatically assigns 'customer' role */}
+              <input type="hidden" name="role" value="customer" />
 
               {/* Name field */}
               <div className="space-y-1">

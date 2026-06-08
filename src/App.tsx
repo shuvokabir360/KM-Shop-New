@@ -24,7 +24,10 @@ import {
   Star,
   Compass,
   MessageSquare,
-  AlertCircle
+  AlertCircle,
+  User,
+  Settings,
+  UserCheck
 } from 'lucide-react';
 
 import Header from './components/Header';
@@ -38,6 +41,7 @@ import CustomerLoginModal from './components/CustomerLoginModal';
 import CustomerDashboardModal from './components/CustomerDashboardModal';
 import SuperAdminDashboard, { SiteConfig } from './components/SuperAdminDashboard';
 import ProductHeroSlider from './components/ProductHeroSlider';
+import EmailSimulator from './components/EmailSimulator';
 
 import { auth, db } from './lib/firebase';
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, User as FirebaseUser } from 'firebase/auth';
@@ -1832,27 +1836,60 @@ PersistWishlist();
             <span className="text-[10px] bangla-text">সাপোর্ট</span>
           </button>
 
-          {/* Tab 5: Seller/Vendor Dashboard toggle */}
-          <button
-            id="mobile-tab-seller"
-            onClick={() => {
-              if (loggedInCustomer && loggedInCustomer.role === 'seller') {
-                setIsSellerMode(true);
+          {/* Tab 5: Session specific dashboard or Plain Login */}
+          {!loggedInCustomer ? (
+            <button
+              id="mobile-tab-seller"
+              onClick={() => setIsLoginModalOpen(true)}
+              className="flex flex-col items-center justify-center gap-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-all active:scale-95 font-sans"
+            >
+              <User size={20} />
+              <span className="text-[10px] font-sans">Login</span>
+            </button>
+          ) : loggedInCustomer?.role === 'seller' ? (
+            <button
+              id="mobile-tab-seller"
+              onClick={() => {
+                setIsSellerMode(!isSellerMode);
                 setIsAdminMode(false);
-              } else {
-                setIsLoginModalOpen(true);
-              }
-            }}
-            className={`flex flex-col items-center justify-center gap-1 transition-all active:scale-95 ${
-              isSellerMode ? 'text-rose-500 font-semibold animate-pulse' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
-            }`}
-          >
-            <Store size={20} className={isSellerMode ? 'scale-110 text-rose-500' : ''} />
-            <span className="text-[10px] bangla-text">দোকান</span>
-          </button>
+              }}
+              className={`flex flex-col items-center justify-center gap-1 transition-all active:scale-95 ${
+                isSellerMode ? 'text-rose-500 font-semibold animate-pulse' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+              }`}
+            >
+              <Store size={20} className={isSellerMode ? 'scale-110 text-rose-500' : ''} />
+              <span className="text-[10px] bangla-text">দোকান</span>
+            </button>
+          ) : loggedInCustomer?.role === 'admin' ? (
+            <button
+              id="mobile-tab-admin"
+              onClick={() => {
+                setIsAdminMode(!isAdminMode);
+                setIsSellerMode(false);
+              }}
+              className={`flex flex-col items-center justify-center gap-1 transition-all active:scale-95 ${
+                isAdminMode ? 'text-amber-500 font-semibold animate-pulse' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+              }`}
+            >
+              <Settings size={20} className={isAdminMode ? 'scale-110 text-amber-500' : ''} />
+              <span className="text-[10px] bangla-text font-bold">এডমিন</span>
+            </button>
+          ) : (
+            <button
+              id="mobile-tab-customer"
+              onClick={() => setIsCustomerDashboardOpen(true)}
+              className={`flex flex-col items-center justify-center gap-1 transition-all active:scale-95 ${
+                isCustomerDashboardOpen ? 'text-emerald-600 font-semibold' : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
+              }`}
+            >
+              <UserCheck size={20} className={isCustomerDashboardOpen ? 'scale-110 text-emerald-600 animate-bounce' : ''} />
+              <span className="text-[10px] bangla-text font-bold">প্রোফাইল</span>
+            </button>
+          )}
         </div>
       </div>
 
+      <EmailSimulator isDarkMode={isDarkMode} />
     </div>
   );
 }
